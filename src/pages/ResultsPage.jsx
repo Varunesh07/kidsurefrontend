@@ -17,11 +17,12 @@ export default function ResultsPage() {
   const [error, setError] = useState(null);
 
   const ids = searchParams.get('ids');
+  const aiText = searchParams.get('aiText');
 
   useEffect(() => {
     const fetchResults = async () => {
-      if (!ids) {
-        setError("No symptoms selected.");
+      if (!ids && !aiText) {
+        setError("No symptoms selected or described.");
         setLoading(false);
         return;
       }
@@ -38,13 +39,21 @@ export default function ResultsPage() {
       setError(null);
       
       try {
-        const idArray = ids.split(',');
-        const res = await api.post('/api/symptoms/match', {
-          symptomIds: idArray,
-          lat: location.lat,
-          lng: location.lng
-          // radius defaults to 10000 in backend
-        });
+        let res;
+        if (aiText) {
+          res = await api.post('/api/symptoms/analyze', {
+            text: aiText,
+            lat: location.lat,
+            lng: location.lng
+          });
+        } else {
+          const idArray = ids.split(',');
+          res = await api.post('/api/symptoms/match', {
+            symptomIds: idArray,
+            lat: location.lat,
+            lng: location.lng
+          });
+        }
         
         setHospitals(res.data.hospitals);
         setMatchedSpecialisations(res.data.matchedSpecialisations);
@@ -57,7 +66,7 @@ export default function ResultsPage() {
     };
     
     fetchResults();
-  }, [ids, location, isLoadingLocation]);
+  }, [ids, aiText, location, isLoadingLocation]);
 
   return (
     <div className="flex flex-col h-full bg-l1 min-h-screen">
