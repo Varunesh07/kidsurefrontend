@@ -282,7 +282,7 @@ export default function Login() {
                 <circle cx="12" cy="9" r="2.5"/>
               </svg>
             </div>
-            <div className="lname">Medi<span>Route</span></div>
+            <div className="lname">Kid<span>Sure</span></div>
           </div>
           <h2>Welcome back</h2>
           <p className="subh">Find care wherever you are, instantly.</p>
@@ -331,9 +331,9 @@ export default function Login() {
                 <circle cx="12" cy="9" r="2.5"/>
               </svg>
             </div>
-            <div className="lname">Medi<span>Route</span></div>
+            <div className="lname">Kid<span>Sure</span></div>
           </div>
-          <h2>Join MediRoute</h2>
+          <h2>Join KidSure</h2>
           <p className="subh">Your personal health guide on every trip.</p>
           {error && <p className="err-msg">{error}</p>}
           <form onSubmit={handleSignup}>
