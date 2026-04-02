@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Phone, Clock, AlertCircle, Bookmark, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, Clock, AlertCircle, Bookmark, Share2, Star } from 'lucide-react';
 import api from '../api/axios';
 import { useLocationInfo } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +19,13 @@ export default function HospitalDetail() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Rating state
+  const [myRating, setMyRating] = useState(null);     // stars user already gave
+  const [hovered, setHovered] = useState(0);           // star currently hovered
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [ratingError, setRatingError] = useState(null);
+  const [ratingSuccess, setRatingSuccess] = useState(false);
+
   useEffect(() => {
     const fetchHospital = async () => {
       try {
@@ -33,6 +40,40 @@ export default function HospitalDetail() {
     };
     fetchHospital();
   }, [id]);
+
+  // Fetch user's existing rating for this hospital
+  useEffect(() => {
+    const fetchMyRating = async () => {
+      try {
+        const res = await api.get(`/api/ratings/${id}/mine`);
+        if (res.data.hasRated) setMyRating(res.data.stars);
+      } catch (err) {
+        // silently ignore — user just hasn't rated yet
+      }
+    };
+    if (id) fetchMyRating();
+  }, [id]);
+
+  const handleRate = async (stars) => {
+    if (myRating || ratingLoading) return; // already rated
+    setRatingLoading(true);
+    setRatingError(null);
+    try {
+      const res = await api.post(`/api/ratings/${id}`, { stars });
+      setMyRating(stars);
+      setRatingSuccess(true);
+      // update the live avgRating badge without a full reload
+      setHospital(prev => ({
+        ...prev,
+        avgRating: res.data.avgRating,
+        ratingCount: res.data.ratingCount,
+      }));
+    } catch (err) {
+      setRatingError(err.response?.data?.message || 'Failed to submit rating.');
+    } finally {
+      setRatingLoading(false);
+    }
+  };
 
   useEffect(() => {
     // If the page was hard-loaded directly from URL, location might be missing
@@ -141,7 +182,7 @@ export default function HospitalDetail() {
 
       {/* Tabs */}
       <div className="bg-white sticky top-[60px] md:top-0 z-20 border-b border-l3 px-5 md:px-7 flex gap-6 overflow-x-auto no-scrollbar">
-        {['overview', 'location'].map(tab => (
+        {['overview', 'reviews', 'location'].map(tab => (
            <button
              key={tab}
              onClick={() => setActiveTab(tab)}
@@ -196,6 +237,73 @@ export default function HospitalDetail() {
                </div>
              </div>
 
+          </div>
+        )}
+
+        {activeTab === 'reviews' && (
+          <div className="animate-in slide-in-from-bottom-2 fade-in duration-300 space-y-5">
+            {/* Average Rating Banner */}
+            <div className="bg-white border border-l3 rounded-2xl p-5 shadow-sm flex items-center gap-5">
+              <div className="flex flex-col items-center">
+                <span className="text-[48px] font-bold text-ink leading-none">
+                  {hospital.avgRating ? hospital.avgRating.toFixed(1) : '—'}
+                </span>
+                <div className="flex gap-[3px] mt-1">
+                  {[1,2,3,4,5].map(s => (
+                    <Star key={s} size={14}
+                      fill={hospital.avgRating >= s ? '#1DB895' : 'none'}
+                      stroke={hospital.avgRating >= s ? '#1DB895' : '#cbd5e1'}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] text-mid mt-1">{hospital.ratingCount || 0} reviews</span>
+              </div>
+              <div className="w-px h-16 bg-l3" />
+              <p className="text-[13px] text-mid leading-relaxed flex-1">
+                {hospital.ratingCount > 0
+                  ? `Based on ${hospital.ratingCount} parent ${hospital.ratingCount === 1 ? 'review' : 'reviews'}.`
+                  : 'No reviews yet. Be the first to rate this clinic!'}
+              </p>
+            </div>
+
+            {/* Star Widget */}
+            <div className="bg-white border border-l3 rounded-2xl p-5 shadow-sm">
+              <h3 className="text-[15px] font-bold text-ink mb-1">Rate this clinic</h3>
+              <p className="text-[13px] text-mid mb-4">
+                {myRating ? `You rated this clinic ${myRating} star${myRating > 1 ? 's' : ''}. Thank you!` : 'Tap a star to leave your rating.'}
+              </p>
+
+              <div className="flex gap-3 mb-4">
+                {[1,2,3,4,5].map(s => (
+                  <button
+                    key={s}
+                    disabled={!!myRating || ratingLoading}
+                    onMouseEnter={() => !myRating && setHovered(s)}
+                    onMouseLeave={() => !myRating && setHovered(0)}
+                    onClick={() => handleRate(s)}
+                    className="transition-transform hover:scale-110 disabled:cursor-default"
+                  >
+                    <Star
+                      size={36}
+                      fill={(hovered || myRating || 0) >= s ? '#1DB895' : 'none'}
+                      stroke={(hovered || myRating || 0) >= s ? '#1DB895' : '#cbd5e1'}
+                      strokeWidth={1.5}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {ratingSuccess && (
+                <div className="text-[13px] font-semibold text-teal bg-teal/10 border border-teal/20 rounded-xl px-4 py-3">
+                  ✓ Rating submitted successfully!
+                </div>
+              )}
+              {ratingError && (
+                <div className="text-[13px] font-semibold text-red-dark bg-red-bg border border-red-bdr rounded-xl px-4 py-3">
+                  {ratingError}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
