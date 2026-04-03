@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Crosshair, ClipboardList, CheckCircle, XCircle, Users } from 'lucide-react';
+import { ShieldCheck, Crosshair, ClipboardList, CheckCircle, XCircle, Users, MapPin, Phone, Clock, X, AlertTriangle } from 'lucide-react';
 import api from '../api/axios';
 import LocationPicker from '../components/LocationPicker';
+import MapView from '../components/MapView';
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -36,6 +37,12 @@ function SuperAdminView() {
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Rejection modal state
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectLoading, setRejectLoading] = useState(false);
+  const [rejectError, setRejectError] = useState('');
+
   const fetchPending = async () => {
     try {
       const res = await api.get('/api/admin/pending');
@@ -54,21 +61,38 @@ function SuperAdminView() {
   const handleApprove = async (id) => {
     try {
       await api.put(`/api/admin/approve/${id}`);
-      fetchPending(); // Refresh list
+      fetchPending();
     } catch(err) {
       alert("Failed to approve");
     }
   };
 
-  const handleReject = async (id) => {
-    const reason = window.prompt("Reason for rejection:");
-    if (!reason || reason.trim() === '') return;
-    
+  const openRejectModal = (id) => {
+    setRejectingId(id);
+    setRejectReason('');
+    setRejectError('');
+  };
+
+  const closeRejectModal = () => {
+    setRejectingId(null);
+    setRejectReason('');
+    setRejectError('');
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectReason.trim()) {
+      setRejectError('Please provide a reason for rejection.');
+      return;
+    }
+    setRejectLoading(true);
     try {
-      await api.put(`/api/admin/reject/${id}`, { reason });
-      fetchPending(); // Refresh list
+      await api.put(`/api/admin/reject/${rejectingId}`, { reason: rejectReason.trim() });
+      closeRejectModal();
+      fetchPending();
     } catch (err) {
-      alert("Failed to reject");
+      setRejectError(err.response?.data?.message || 'Failed to reject.');
+    } finally {
+      setRejectLoading(false);
     }
   };
 
@@ -83,26 +107,159 @@ function SuperAdminView() {
           All caught up! No hospitals pending review.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {pending.map(h => (
-            <div key={h._id} className="bg-white border border-l3 p-5 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between gap-4">
-              <div>
-                <h3 className="font-bold text-[16px] text-ink">{h.name}</h3>
-                <p className="text-[13px] text-mid mb-2">{h.address}</p>
-                <div className="flex gap-2">
-                  <span className="text-[11px] font-bold bg-orange/10 text-orange border border-orange/20 px-2 py-0.5 rounded-sm uppercase tracking-wide">Pending</span>
+            <div key={h._id} className="bg-white border border-l3 rounded-2xl shadow-sm overflow-hidden">
+              
+              {/* Cover Image */}
+              {h.coverImage && (
+                <div className="w-full h-[180px] bg-ink overflow-hidden">
+                  <img src={h.coverImage} alt={h.name} className="w-full h-full object-cover opacity-90" />
                 </div>
-              </div>
-              <div className="flex gap-2 items-center">
-                <button onClick={() => handleApprove(h._id)} className="flex items-center gap-1 bg-[#EAF7F4] hover:bg-teal text-teal hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold transition-colors border border-teal">
-                  <CheckCircle size={16} /> Approve
-                </button>
-                <button onClick={() => handleReject(h._id)} className="flex items-center gap-1 bg-red-bg hover:bg-red-dark text-red-dark hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold transition-colors border border-red-bdr">
-                  <XCircle size={16} /> Reject
-                </button>
+              )}
+
+              <div className="p-5 space-y-4">
+                {/* Header */}
+                <div className="flex flex-wrap justify-between items-start gap-3">
+                  <div>
+                    <h3 className="font-bold text-[18px] text-ink">{h.name}</h3>
+                    <p className="text-[13px] text-mid mt-0.5 flex items-center gap-1">
+                      <MapPin size={12} /> {h.address}
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold bg-orange/10 text-orange border border-orange/20 px-2 py-1 rounded-md uppercase tracking-wide flex-shrink-0">Pending</span>
+                </div>
+
+                {/* Submitted By */}
+                {h.submittedBy && (
+                  <div className="bg-l1 border border-l3 rounded-xl px-4 py-3 text-[13px]">
+                    <span className="text-mid">Submitted by </span>
+                    <span className="font-bold text-ink">{h.submittedBy.name}</span>
+                    <span className="text-mid"> · {h.submittedBy.email}</span>
+                  </div>
+                )}
+
+                {/* Phone + Badges */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {h.phone && (
+                    <div className="flex items-center gap-1.5 text-[13px] font-semibold text-ink">
+                      <Phone size={14} className="text-teal" /> {h.phone}
+                    </div>
+                  )}
+                  {h.is24x7 && <span className="px-2 py-0.5 text-[11px] font-bold bg-orange/10 text-orange border border-orange/20 rounded-full">24/7</span>}
+                  {h.isEmergency && <span className="px-2 py-0.5 text-[11px] font-bold bg-red-bg text-red-dark border border-red-bdr rounded-full">Emergency</span>}
+                </div>
+
+                {/* Categories */}
+                {h.categories?.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {h.categories.map(cat => (
+                      <span key={cat} className="px-3 py-1 text-[12px] font-bold bg-teal/10 text-teal border border-teal/20 rounded-full">{cat}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Operating Hours */}
+                {!h.is24x7 && h.operatingHours?.length > 0 && (
+                  <div>
+                    <p className="text-[12px] font-bold text-ink flex items-center gap-1 mb-2"><Clock size={13} className="text-teal"/> Operating Hours</p>
+                    <div className="border border-l3 rounded-xl overflow-hidden divide-y divide-l3 text-[12px]">
+                      {h.operatingHours.map((oh, idx) => (
+                        <div key={idx} className="flex justify-between px-4 py-2">
+                          <span className="text-mid w-20">{oh.day?.slice(0,3)}</span>
+                          <span className={oh.isOpen ? 'text-ink font-semibold' : 'text-red-dark'}>
+                            {oh.isOpen ? `${oh.openTime} – ${oh.closeTime}` : 'Closed'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Map */}
+                {h.location?.coordinates && (
+                  <div>
+                    <p className="text-[12px] font-bold text-ink flex items-center gap-1 mb-2"><MapPin size={13} className="text-teal"/> Location</p>
+                    <MapView
+                      hospitals={[h]}
+                      centerLat={h.location.coordinates[1]}
+                      centerLng={h.location.coordinates[0]}
+                      zoom={14}
+                      height="220px"
+                    />
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => handleApprove(h._id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-[#EAF7F4] hover:bg-teal text-teal hover:text-white py-3 rounded-xl text-[13px] font-bold transition-colors border border-teal"
+                  >
+                    <CheckCircle size={16} /> Approve
+                  </button>
+                  <button
+                    onClick={() => openRejectModal(h._id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-red-bg hover:bg-red-dark text-red-dark hover:text-white py-3 rounded-xl text-[13px] font-bold transition-colors border border-red-bdr"
+                  >
+                    <XCircle size={16} /> Reject
+                  </button>
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectingId && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-ink/60 backdrop-blur-sm" onClick={closeRejectModal} />
+          
+          {/* Modal Card */}
+          <div className="relative bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl p-6 mb-4 md:mb-0 z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-bg border border-red-bdr flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={18} className="text-red-dark" />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-bold text-ink">Reject Hospital</h3>
+                <p className="text-[12px] text-mid">The hospital admin will be notified with your reason.</p>
+              </div>
+              <button onClick={closeRejectModal} className="ml-auto p-2 rounded-full hover:bg-l1 text-mid transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <label className="text-[13px] font-bold text-ink block mb-2">Reason for Rejection</label>
+            <textarea
+              className="w-full border border-l3 rounded-xl p-4 text-[14px] text-ink outline-none focus:border-red-dark min-h-[120px] resize-none transition-colors bg-l1"
+              placeholder="e.g. The clinic address is incomplete. Please provide a valid street address and PIN code."
+              value={rejectReason}
+              onChange={e => { setRejectReason(e.target.value); setRejectError(''); }}
+            />
+
+            {rejectError && (
+              <p className="text-[12px] text-red-dark font-semibold mt-2">{rejectError}</p>
+            )}
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={closeRejectModal}
+                className="flex-1 py-3 rounded-xl border border-l3 text-mid text-[13px] font-bold hover:bg-l1 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                disabled={rejectLoading}
+                className="flex-1 py-3 rounded-xl bg-red-dark text-white text-[13px] font-bold hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {rejectLoading ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
