@@ -45,7 +45,7 @@ html, body, #root {
 /* ════ DESKTOP HALVES ════ */
 .half { position: absolute; top: 0; bottom: 0; width: 50%; transition: transform var(--ease); will-change: transform; }
 .half-form { left: 0; background: var(--white); z-index: 3; display: flex; flex-direction: column; justify-content: center; padding: 44px 46px; }
-.half-visual { left: 50%; z-index: 2; overflow: hidden; position: relative; }
+.half-visual { left: 50%; z-index: 2; overflow: hidden; position: relative; background: #e8f4fc; }
 .shell.signup .half-form { transform: translateX(100%); }
 .shell.signup .half-visual { transform: translateX(-100%); }
 
@@ -81,10 +81,18 @@ html, body, #root {
 
 /* ════ FORM PANELS ════ */
 .fpanel {
-  position: absolute; inset: 0; padding: 44px 46px;
+  position: absolute; inset: 0; padding: 32px 46px;
   display: flex; flex-direction: column; justify-content: center;
   background: var(--white); transition: opacity .4s ease, transform .4s ease;
 }
+.shell.signup .fpanel:not(.hidden) {
+  justify-content: flex-start;
+  padding-top: 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.shell.signup .fpanel:not(.hidden)::-webkit-scrollbar { display: none; }
 .fpanel.hidden { opacity: 0; pointer-events: none; transform: translateY(12px); }
 
 .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
@@ -101,6 +109,9 @@ h2 { font-family: 'Fraunces', serif; font-size: clamp(20px, 2.2vw, 26px); font-w
 .subh { font-size: 12.5px; color: var(--muted); margin-bottom: 18px; }
 
 .field { margin-bottom: 10px; }
+.shell.signup .field { margin-bottom: 7px; }
+.shell.signup .logo { margin-bottom: 12px; }
+.shell.signup .subh { margin-bottom: 10px; }
 label { display: block; font-size: 10.5px; font-weight: 700; color: var(--text); margin-bottom: 4px; letter-spacing: .06em; text-transform: uppercase; }
 
 input:not([type=checkbox]), select {
