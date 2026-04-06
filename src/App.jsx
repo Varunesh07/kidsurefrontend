@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
@@ -45,6 +45,7 @@ const AppShell = ({ children }) => {
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const { user, loading, fetchMe } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     if (token && !user && !loading) {
@@ -52,7 +53,7 @@ const PrivateRoute = ({ children }) => {
     }
   }, [token, user, loading, fetchMe]);
 
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
   if (loading || (token && !user)) return <div className="min-h-screen flex items-center justify-center text-teal font-semibold">Loading KidSure...</div>;
   
   return <AppShell>{children}</AppShell>;

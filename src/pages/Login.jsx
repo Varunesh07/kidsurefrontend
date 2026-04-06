@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import api from '../api/axios'
 import './Login.css'
@@ -9,6 +9,16 @@ export default function Login() {
   const [mode, setMode] = useState('login')
   const [swapping, setSwapping] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Where to route the user after a successful login (supports deep linking via shared URLs)
+  const navigateToDestination = () => {
+    let from = '/'
+    if (location.state?.from?.pathname) {
+      from = location.state.from.pathname + (location.state.from.search || '')
+    }
+    navigate(from, { replace: true })
+  }
 
   const [loginData, setLoginData] = useState({ email: '', password: '' })
   const [signupData, setSignupData] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'user', agreed: false })
@@ -59,7 +69,7 @@ export default function Login() {
     try {
       const res = await api.post('/api/auth/login', loginData)
       localStorage.setItem('token', res.data.token)
-      navigate('/')
+      navigateToDestination()
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please try again.')
     } finally {
@@ -80,7 +90,7 @@ export default function Login() {
         role: signupData.role,
       })
       localStorage.setItem('token', res.data.token)
-      navigate('/')
+      navigateToDestination()
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.')
     } finally {
@@ -94,7 +104,7 @@ export default function Login() {
     try {
       const res = await api.post('/api/auth/google', { access_token: tokenResponse.access_token })
       localStorage.setItem('token', res.data.token)
-      navigate('/')
+      navigateToDestination()
     } catch (err) {
       setError(err.response?.data?.message || 'Google sign-in failed. Please try again.')
     } finally {
@@ -319,7 +329,6 @@ export default function Login() {
               <input type="password" placeholder="••••••••" autoComplete="current-password" required
                 value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} />
             </div>
-            <div className="forgot">Forgot password?</div>
             <button className="btn" type="submit" disabled={loading}>
               {loading ? 'Signing in…' : 'Sign In →'}
             </button>

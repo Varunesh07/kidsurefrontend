@@ -25,6 +25,7 @@ export default function HospitalDetail() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingError, setRatingError] = useState(null);
   const [ratingSuccess, setRatingSuccess] = useState(false);
+  const [shareToast, setShareToast] = useState(false);
 
   useEffect(() => {
     const fetchHospital = async () => {
@@ -53,6 +54,34 @@ export default function HospitalDetail() {
     };
     if (id) fetchMyRating();
   }, [id]);
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/hospital/${id}`;
+    const shareData = {
+      title: `${hospital?.name} — KidSure`,
+      text: `Find ${hospital?.name} on KidSure — the paediatric hospital finder.`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled — no action needed
+      }
+    } else {
+      // Fallback: copy URL to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareToast(true);
+        setTimeout(() => setShareToast(false), 2500);
+      } catch {
+        // Clipboard also failed — last resort
+        setShareToast(true);
+        setTimeout(() => setShareToast(false), 2500);
+      }
+    }
+  };
 
   const handleRate = async (stars) => {
     if (myRating || ratingLoading) return; // already rated
@@ -131,7 +160,7 @@ export default function HospitalDetail() {
             <ArrowLeft size={20} />
           </button>
           <div className="flex gap-2">
-            <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/30 transition">
+            <button onClick={handleShare} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/30 transition">
               <Share2 size={16} />
             </button>
             <button onClick={() => toggleBookmark(hospital._id)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/30 transition">
@@ -140,6 +169,13 @@ export default function HospitalDetail() {
           </div>
         </div>
       </div>
+
+      {/* Share Toast */}
+      {shareToast && (
+        <div className="fixed bottom-[100px] left-1/2 -translate-x-1/2 z-50 bg-ink text-white text-[13px] font-semibold px-5 py-3 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
+          🔗 Link copied to clipboard!
+        </div>
+      )}
 
       {/* Main Info */}
       <div className="px-5 md:px-7 pt-5 pb-6 bg-white border-b border-l3 -mt-6 rounded-t-[24px] relative z-20">
