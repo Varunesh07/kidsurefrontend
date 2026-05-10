@@ -243,12 +243,16 @@ export default function HospitalDetail() {
                  </div>
                  <div>
                    <p className="text-[12px] text-mid font-medium">Contact Number</p>
-                   <p className="text-[15px] font-bold">{hospital.phone}</p>
+                   <p className={`text-[15px] ${hospital.phone === '0000000000' ? 'text-mid italic' : 'font-bold'}`}>
+                     {hospital.phone === '0000000000' ? 'Number not present' : hospital.phone}
+                   </p>
                  </div>
                </div>
-               <a href={`tel:${hospital.phone}`} className="px-4 py-2 bg-ink text-white text-[13px] font-semibold rounded-xl hover:bg-ink2 transition-colors">
-                 Call Now
-               </a>
+               {hospital.phone !== '0000000000' && (
+                 <a href={`tel:${hospital.phone}`} className="px-4 py-2 bg-ink text-white text-[13px] font-semibold rounded-xl hover:bg-ink2 transition-colors">
+                   Call Now
+                 </a>
+               )}
              </div>
 
              <div>

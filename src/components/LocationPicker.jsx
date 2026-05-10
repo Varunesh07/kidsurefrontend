@@ -20,15 +20,29 @@ function ChangeView({ center }) {
   const map = useMap();
   useEffect(() => {
     map.setView(center, map.getZoom());
-  }, [center, map]);
+  }, [center[0], center[1], map]);
   return null;
 }
 
 export default function LocationPicker({ onChange, defaultPosition }) {
   const [position, setPosition] = useState(defaultPosition || null);
+  const [userLoc, setUserLoc] = useState([11.0168, 76.9558]); // Coimbatore default fallback
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLoc([pos.coords.latitude, pos.coords.longitude]);
+        },
+        (err) => {
+          console.error("Could not get user location:", err);
+        }
+      );
+    }
+  }, []);
   
   // Default to a central coordinate if no position is picked yet
-  const center = position ? [position.lat, position.lng] : [11.0168, 76.9558]; // Coimbatore default
+  const center = position ? [position.lat, position.lng] : userLoc;
 
   // Notify parent form whenever position changes
   useEffect(() => {

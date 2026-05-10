@@ -344,6 +344,7 @@ function HospitalAdminView() {
 
       const payload = {
         ...formData,
+        phone: formData.phone?.trim() || '0000000000',
         categories: categories,
         ...(finalImageUrl && { coverImage: finalImageUrl }),
         operatingHours: operatingHours, 
@@ -410,7 +411,7 @@ function HospitalAdminView() {
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label className="text-[13px] font-bold text-ink block mb-1">Clinic Name</label>
+            <label className="text-[13px] font-bold text-ink block mb-1">Clinic Name <span className="text-red-dark">*</span></label>
             <input type="text" className="w-full border border-l3 rounded-xl p-3 text-[14px]" placeholder="e.g. Apollo Kids Clinic" 
               value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
           </div>
@@ -422,13 +423,13 @@ function HospitalAdminView() {
           </div>
 
           <div>
-            <label className="text-[13px] font-bold text-ink block mb-1">Full Address</label>
+            <label className="text-[13px] font-bold text-ink block mb-1">Full Address <span className="text-red-dark">*</span></label>
             <textarea className="w-full border border-l3 rounded-xl p-3 text-[14px] min-h-[80px]" placeholder="Street address..."
               value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
           </div>
 
           <div>
-            <label className="text-[13px] font-bold text-ink block mb-2">Select Categories / Departments</label>
+            <label className="text-[13px] font-bold text-ink block mb-2">Select Categories / Departments <span className="text-red-dark">*</span></label>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_CATEGORIES.map(cat => (
                 <button
@@ -448,7 +449,7 @@ function HospitalAdminView() {
           </div>
 
           <div>
-            <label className="text-[13px] font-bold text-ink block mb-1">Upload Cover Photo</label>
+            <label className="text-[13px] font-bold text-ink block mb-1">Upload Cover Photo <span className="text-red-dark">*</span></label>
             <input 
               type="file" 
               accept="image/*"
@@ -458,7 +459,7 @@ function HospitalAdminView() {
           </div>
 
           <div>
-            <label className="text-[13px] font-bold text-ink block mb-2">Facility Offerings</label>
+            <label className="text-[13px] font-bold text-ink block mb-2">Facility Offerings <span className="text-red-dark">*</span></label>
             <div className="flex gap-4 p-4 border border-l3 rounded-xl bg-l1">
               <label className="flex items-center gap-2 text-[13px] font-bold text-ink cursor-pointer">
                 <input type="checkbox" checked={formData.is24x7} onChange={e => setFormData({...formData, is24x7: e.target.checked})} className="w-4 h-4 text-teal accent-teal" />
@@ -473,7 +474,7 @@ function HospitalAdminView() {
 
           {!formData.is24x7 && (
             <div>
-              <label className="text-[13px] font-bold text-ink block mb-2">Operating Hours</label>
+              <label className="text-[13px] font-bold text-ink block mb-2">Operating Hours <span className="text-red-dark">*</span></label>
               <div className="border border-l3 rounded-xl overflow-hidden divide-y divide-l3">
                 {operatingHours.map((oh, idx) => (
                   <div key={oh.day} className="flex items-center px-4 py-3 bg-white gap-3">
