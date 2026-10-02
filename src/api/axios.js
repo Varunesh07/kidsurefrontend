@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const getBaseURL = () => {
   const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-  if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost') {
+  if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && envUrl.includes('localhost')) {
     return envUrl.replace('localhost', window.location.hostname)
   }
   return envUrl
