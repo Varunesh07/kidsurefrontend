@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import Login from './pages/Login';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
+import HospitalDiscoveryPage from './pages/HospitalDiscoveryPage';
 import SymptomsPage from './pages/SymptomsPage';
 import ResultsPage from './pages/ResultsPage';
 import HospitalDetail from './pages/HospitalDetail';
@@ -87,7 +88,9 @@ export default function App() {
             } />
             
             <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
-            <Route path="/search" element={<PrivateRoute><SearchPage /></PrivateRoute>} />
+            <Route path="/search" element={<PrivateRoute><HospitalDiscoveryPage /></PrivateRoute>} />
+            <Route path="/discover" element={<PrivateRoute><HospitalDiscoveryPage /></PrivateRoute>} />
+            <Route path="/search-classic" element={<PrivateRoute><SearchPage /></PrivateRoute>} />
             <Route path="/symptoms" element={<PrivateRoute><SymptomsPage /></PrivateRoute>} />
             <Route path="/symptoms/results" element={<PrivateRoute><ResultsPage /></PrivateRoute>} />
             <Route path="/hospital/:id" element={<PrivateRoute><HospitalDetail /></PrivateRoute>} />
