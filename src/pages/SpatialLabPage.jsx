@@ -147,7 +147,7 @@ export default function SpatialLabPage() {
       setCrudLog(res.data);
     } catch (err) {
       console.error(err);
-      alert('Error running CRUD demo');
+      alert('Error running CRUD demo: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -189,7 +189,7 @@ export default function SpatialLabPage() {
             </div>
             <div className="bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl">
               <span className="text-faint block text-[10px] uppercase font-semibold">Boundaries</span>
-              <strong className="text-white text-[15px]">5 City Polygons</strong>
+              <strong className="text-white text-[15px]">{boundaries.length || 38} District Polygons</strong>
             </div>
             <div className="bg-teal/20 border border-teal/40 px-3 py-1.5 rounded-xl text-teal">
               <span className="text-teal/80 block text-[10px] uppercase font-semibold">Atlas Index</span>
@@ -251,13 +251,15 @@ export default function SpatialLabPage() {
                       setSelectedDistrict(e.target.value);
                       runGeoWithin(e.target.value);
                     }}
-                    className="bg-l2 border border-l3 rounded-xl px-3 py-1.5 text-[12px] font-semibold text-ink outline-none focus:border-teal"
+                    className="bg-l2 border border-l3 rounded-xl px-3 py-1.5 text-[12px] font-semibold text-ink outline-none focus:border-teal max-w-[220px]"
                   >
-                    <option value="Coimbatore">Coimbatore Corporation</option>
-                    <option value="Chennai">Greater Chennai Corporation</option>
-                    <option value="Madurai">Madurai Corporation</option>
-                    <option value="Trichy">Tiruchirappalli Corporation</option>
-                    <option value="Salem">Salem Corporation</option>
+                    {boundaries.length > 0 ? (
+                      boundaries.map(b => (
+                        <option key={b._id} value={b.district}>{b.name}</option>
+                      ))
+                    ) : (
+                      <option value="Coimbatore">Coimbatore Corporation</option>
+                    )}
                   </select>
 
                   <button
@@ -469,8 +471,8 @@ export default function SpatialLabPage() {
               <ChangeMapView center={mapCenter} zoom={mapZoom} />
 
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
               {/* User Position */}
