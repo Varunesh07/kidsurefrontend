@@ -3,13 +3,8 @@ import {
   Compass, 
   MapPin, 
   Layers, 
-  CheckCircle, 
   Activity, 
-  Database, 
   Play, 
-  ShieldCheck, 
-  Clock, 
-  AlertCircle,
   BarChart3
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle, useMap } from 'react-leaflet';
@@ -39,11 +34,19 @@ const userIcon = L.icon({
   popupAnchor: [1, -34],
 });
 
+const selectedIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [28, 46],
+  iconAnchor: [14, 46],
+  popupAnchor: [1, -38],
+});
+
 function ChangeMapView({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
     if (center && center[0] && center[1]) {
-      map.setView(center, zoom);
+      map.setView(center, zoom, { animate: true });
     }
   }, [center, zoom, map]);
   return null;
@@ -51,7 +54,7 @@ function ChangeMapView({ center, zoom }) {
 
 export default function SpatialLabPage() {
   const { location } = useLocationInfo();
-  const [activeTab, setActiveTab] = useState('within'); // 'within' | 'distances' | 'comparison' | 'crud'
+  const [activeTab, setActiveTab] = useState('within'); // 'within' | 'distances' | 'comparison'
   const [loading, setLoading] = useState(false);
   
   // Data states
@@ -60,8 +63,8 @@ export default function SpatialLabPage() {
   const [withinResult, setWithinResult] = useState(null);
   const [distanceResult, setDistanceResult] = useState([]);
   const [comparisonResult, setComparisonResult] = useState(null);
-  const [crudLog, setCrudLog] = useState(null);
   const [activeRadiusCircle, setActiveRadiusCircle] = useState(null); // in meters
+  const [selectedHospital, setSelectedHospital] = useState(null);
 
   // Map center coordinates
   const [mapCenter, setMapCenter] = useState([11.0168, 76.9558]);
@@ -83,10 +86,20 @@ export default function SpatialLabPage() {
     fetchBoundaries();
   }, []);
 
-  // 2. Run $geoWithin containment query
+  // 2. Select a hospital and fly to it on the map
+  const handleSelectHospital = (h) => {
+    if (!h?.location?.coordinates) return;
+    const [lng, lat] = h.location.coordinates;
+    setSelectedHospital(h);
+    setMapCenter([lat, lng]);
+    setMapZoom(16);
+  };
+
+  // 3. Run $geoWithin containment query
   const runGeoWithin = async (districtName = selectedDistrict) => {
     setLoading(true);
     setActiveRadiusCircle(null);
+    setSelectedHospital(null);
     try {
       const res = await api.get(`/api/spatial/within-boundary?district=${districtName}`);
       setWithinResult(res.data);
@@ -105,15 +118,16 @@ export default function SpatialLabPage() {
     }
   };
 
-  // 3. Run $geoNear Geodetic Distance Pipeline
+  // 4. Run $geoNear Geodetic Distance Pipeline (loads all nearby hospitals across state)
   const runGeoNear = async () => {
     setLoading(true);
     setActiveRadiusCircle(null);
+    setSelectedHospital(null);
     try {
-      const res = await api.get(`/api/spatial/distances?lng=${userLng}&lat=${userLat}&limit=12`);
+      const res = await api.get(`/api/spatial/distances?lng=${userLng}&lat=${userLat}&limit=60`);
       setDistanceResult(res.data.hospitals || []);
       setMapCenter([userLat, userLng]);
-      setMapZoom(13);
+      setMapZoom(11);
     } catch (err) {
       console.error(err);
       alert('Error calculating distances');
@@ -122,9 +136,10 @@ export default function SpatialLabPage() {
     }
   };
 
-  // 4. Run Multi-Radius Comparison ($facet)
+  // 5. Run Multi-Radius Comparison ($facet)
   const runRadiusComparison = async () => {
     setLoading(true);
+    setSelectedHospital(null);
     try {
       const res = await api.get(`/api/spatial/radius-comparison?lng=${userLng}&lat=${userLat}`);
       setComparisonResult(res.data.comparison);
@@ -134,20 +149,6 @@ export default function SpatialLabPage() {
     } catch (err) {
       console.error(err);
       alert('Error comparing radius buckets');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 5. Run Spatial CRUD Lifecycle
-  const runCrudDemo = async () => {
-    setLoading(true);
-    try {
-      const res = await api.post('/api/spatial/crud-demo');
-      setCrudLog(res.data);
-    } catch (err) {
-      console.error(err);
-      alert('Error running CRUD demo: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -211,7 +212,6 @@ export default function SpatialLabPage() {
               { id: 'within', label: '$geoWithin (Polygon)', icon: Layers },
               { id: 'distances', label: '$geoNear (Distances)', icon: Activity },
               { id: 'comparison', label: 'Radius Density', icon: BarChart3 },
-              { id: 'crud', label: 'Spatial CRUD', icon: Database },
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -290,20 +290,34 @@ export default function SpatialLabPage() {
                     </div>
                   </div>
 
+                  <p className="text-[11px] text-teal font-semibold flex items-center gap-1">
+                    <MapPin size={12} /> Click any hospital below to fly near it on the map
+                  </p>
+
                   {/* Hospital List preview */}
-                  <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
-                    {withinResult.hospitals.map((h, i) => (
-                      <div key={h._id || i} className="p-3 rounded-xl border border-l3 bg-l1 flex justify-between items-center gap-3">
-                        <div>
-                          <strong className="text-[13px] text-ink block">{h.name}</strong>
-                          <span className="text-[11px] text-mid truncate block max-w-sm">{h.address}</span>
+                  <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                    {withinResult.hospitals.map((h, i) => {
+                      const isSelected = selectedHospital?._id === h._id;
+                      return (
+                        <div 
+                          key={h._id || i} 
+                          onClick={() => handleSelectHospital(h)}
+                          className={`p-3 rounded-xl border cursor-pointer transition-all flex justify-between items-center gap-3
+                            ${isSelected 
+                              ? 'border-teal bg-green-bg shadow-sm ring-2 ring-teal/30' 
+                              : 'border-l3 bg-l1 hover:border-teal hover:bg-white'}`}
+                        >
+                          <div>
+                            <strong className="text-[13px] text-ink block">{h.name}</strong>
+                            <span className="text-[11px] text-mid truncate block max-w-sm">{h.address}</span>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            {h.isEmergency && <span className="bg-red-bg text-red-dark text-[9px] font-bold px-1.5 py-0.5 rounded">Emergency</span>}
+                            {h.is24x7 && <span className="bg-amber-bg text-amber-dark text-[9px] font-bold px-1.5 py-0.5 rounded">24/7</span>}
+                          </div>
                         </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {h.isEmergency && <span className="bg-red-bg text-red-dark text-[9px] font-bold px-1.5 py-0.5 rounded">Emergency</span>}
-                          {h.is24x7 && <span className="bg-amber-bg text-amber-dark text-[9px] font-bold px-1.5 py-0.5 rounded">24/7</span>}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -319,7 +333,7 @@ export default function SpatialLabPage() {
                     <Activity size={18} className="text-teal" /> Feature 3: Geodetic Distances ($geoNear)
                   </h3>
                   <p className="text-[12px] text-mid mt-0.5">
-                    MongoDB Aggregation Pipeline calculating exact distance in kilometers.
+                    MongoDB Aggregation Pipeline calculating exact distance in kilometers from your coordinates.
                   </p>
                 </div>
                 <button
@@ -331,22 +345,36 @@ export default function SpatialLabPage() {
                 </button>
               </div>
 
-              <div className="max-h-[340px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
-                {distanceResult.map((h, i) => (
-                  <div key={h._id} className="p-3 rounded-xl border border-l3 bg-l1 flex justify-between items-center">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-teal text-white flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
-                        <strong className="text-[13px] text-ink">{h.name}</strong>
+              <p className="text-[11px] text-teal font-semibold flex items-center gap-1">
+                <MapPin size={12} /> Plotted {distanceResult.length} nearest hospitals. Click any hospital to fly near it on the map.
+              </p>
+
+              <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                {distanceResult.map((h, i) => {
+                  const isSelected = selectedHospital?._id === h._id;
+                  return (
+                    <div 
+                      key={h._id} 
+                      onClick={() => handleSelectHospital(h)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex justify-between items-center
+                        ${isSelected 
+                          ? 'border-teal bg-green-bg shadow-sm ring-2 ring-teal/30' 
+                          : 'border-l3 bg-l1 hover:border-teal hover:bg-white'}`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? 'bg-amber-c text-ink' : 'bg-teal text-white'}`}>{i + 1}</span>
+                          <strong className="text-[13px] text-ink">{h.name}</strong>
+                        </div>
+                        <p className="text-[11px] text-mid ml-7 mt-0.5">{h.address} &bull; <span className="font-semibold text-teal">{h.district}</span></p>
                       </div>
-                      <p className="text-[11px] text-mid ml-7 mt-0.5">{h.address}</p>
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-[14px] font-bold text-teal block">{h.distanceKm} km</span>
+                        <span className="text-[10px] text-faint">{h.distanceMeters} m</span>
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <span className="text-[14px] font-bold text-teal block">{h.distanceKm} km</span>
-                      <span className="text-[10px] text-faint">{h.distanceMeters} m</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -407,46 +435,6 @@ export default function SpatialLabPage() {
                     <span>Active Circle on Map: <strong>{activeRadiusCircle ? `${activeRadiusCircle / 1000} km buffer` : 'None'}</strong></span>
                     <span className="text-teal font-semibold">Click any card to render radius circle on Leaflet</span>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 4: Spatial CRUD Lifecycle */}
-          {activeTab === 'crud' && (
-            <div className="bg-white border border-l3 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex justify-between items-center border-b border-l3 pb-4">
-                <div>
-                  <h3 className="font-bold text-[16px] text-ink flex items-center gap-2">
-                    <Database size={18} className="text-teal" /> Feature 1: Spatial CRUD Operations
-                  </h3>
-                  <p className="text-[12px] text-mid mt-0.5">
-                    Demonstrate inserting, reading, updating Point coordinates, and deleting a spatial document.
-                  </p>
-                </div>
-                <button
-                  onClick={runCrudDemo}
-                  disabled={loading}
-                  className="bg-teal hover:bg-teal-dark text-white px-3.5 py-1.5 rounded-xl text-[12px] font-bold flex items-center gap-1 transition-colors"
-                >
-                  <Play size={12} /> Test CRUD
-                </button>
-              </div>
-
-              {crudLog ? (
-                <div className="bg-ink text-l1 p-4 rounded-xl font-mono text-[12px] space-y-2 border border-ink2 shadow-inner">
-                  <div className="text-teal font-bold">&gt; MongoDB Spatial CRUD Test: PASS</div>
-                  <div>1. CREATE: Document inserted with 2dsphere Point coordinates [76.965, 11.015]</div>
-                  <div>2. READ: Queried document by _id: {crudLog.createdId}</div>
-                  <div>3. UPDATE: Coordinates updated to [{crudLog.testedCoordinates.join(', ')}]</div>
-                  <div>4. DELETE: Document cleaned up automatically: {crudLog.finalDeleted ? 'True' : 'False'}</div>
-                  <div className="text-green-dark bg-green-bg/20 p-2 rounded border border-green-bdr/30 mt-2">
-                    Status: Verified 2dsphere index compatibility across full CRUD lifecycle.
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-l1 p-6 rounded-xl border border-dashed border-l3 text-center text-mid text-[13px]">
-                  Click <strong>"Test CRUD"</strong> to execute live spatial Create, Read, Update, and Delete operations on MongoDB Atlas.
                 </div>
               )}
             </div>
@@ -518,9 +506,18 @@ export default function SpatialLabPage() {
 
               {/* Hospital Markers for $geoWithin */}
               {activeTab === 'within' && withinResult?.hospitals?.map(h => {
+                if (!h.location?.coordinates) return null;
                 const [lng, lat] = h.location.coordinates;
+                const isSelected = selectedHospital?._id === h._id;
                 return (
-                  <Marker key={h._id} position={[lat, lng]}>
+                  <Marker 
+                    key={h._id} 
+                    position={[lat, lng]}
+                    icon={isSelected ? selectedIcon : DefaultIcon}
+                    eventHandlers={{
+                      click: () => handleSelectHospital(h),
+                    }}
+                  >
                     <Popup>
                       <strong>{h.name}</strong>
                       <br />{h.address}
@@ -532,12 +529,23 @@ export default function SpatialLabPage() {
 
               {/* Hospital Markers for $geoNear Distances */}
               {activeTab === 'distances' && distanceResult.map(h => {
+                if (!h.location?.coordinates) return null;
                 const [lng, lat] = h.location.coordinates;
+                const isSelected = selectedHospital?._id === h._id;
                 return (
-                  <Marker key={h._id} position={[lat, lng]}>
+                  <Marker 
+                    key={h._id} 
+                    position={[lat, lng]}
+                    icon={isSelected ? selectedIcon : DefaultIcon}
+                    eventHandlers={{
+                      click: () => handleSelectHospital(h),
+                    }}
+                  >
                     <Popup>
                       <strong>{h.name}</strong>
-                      <br />Distance: <strong className="text-teal">{h.distanceKm} km</strong>
+                      <br />{h.address}
+                      <br /><span className="text-teal font-bold">{h.district}</span>
+                      <br />Distance: <strong className="text-teal">{h.distanceKm} km</strong> ({h.distanceMeters} m)
                     </Popup>
                   </Marker>
                 );
