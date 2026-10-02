@@ -1,8 +1,9 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
+import HospitalDiscoveryPage from './pages/HospitalDiscoveryPage';
 import SymptomsPage from './pages/SymptomsPage';
 import ResultsPage from './pages/ResultsPage';
 import HospitalDetail from './pages/HospitalDetail';
@@ -46,7 +47,6 @@ const AppShell = ({ children }) => {
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const { user, loading, fetchMe } = useAuth();
-  const location = useLocation();
 
   useEffect(() => {
     if (token && !user && !loading) {
@@ -54,7 +54,7 @@ const PrivateRoute = ({ children }) => {
     }
   }, [token, user, loading, fetchMe]);
 
-  if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!token) return <Navigate to="/login" replace />;
   if (loading || (token && !user)) return <div className="min-h-screen flex items-center justify-center text-teal font-semibold">Loading KidSure...</div>;
   
   return <AppShell>{children}</AppShell>;
@@ -88,7 +88,9 @@ export default function App() {
             } />
             
             <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
-            <Route path="/search" element={<PrivateRoute><SearchPage /></PrivateRoute>} />
+            <Route path="/search" element={<PrivateRoute><HospitalDiscoveryPage /></PrivateRoute>} />
+            <Route path="/discover" element={<PrivateRoute><HospitalDiscoveryPage /></PrivateRoute>} />
+            <Route path="/search-classic" element={<PrivateRoute><SearchPage /></PrivateRoute>} />
             <Route path="/symptoms" element={<PrivateRoute><SymptomsPage /></PrivateRoute>} />
             <Route path="/symptoms/results" element={<PrivateRoute><ResultsPage /></PrivateRoute>} />
             <Route path="/hospital/:id" element={<PrivateRoute><HospitalDetail /></PrivateRoute>} />
