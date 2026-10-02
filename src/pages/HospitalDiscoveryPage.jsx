@@ -58,8 +58,17 @@ const selectedIcon = L.icon({
 });
 
 // Map controller component
-function ChangeMapView({ center, zoom, bounds }) {
+function ChangeMapView({ center, zoom, bounds, mobileView }) {
   const map = useMap();
+
+  // Instant mobile resize invalidation when toggling list/map
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize({ pan: false });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [mobileView, map]);
+
   useEffect(() => {
     if (bounds && bounds.length > 0) {
       try {
@@ -566,15 +575,20 @@ export default function HospitalDiscoveryPage() {
           <MapContainer
             center={mapCenter}
             zoom={mapZoom}
+            preferCanvas={true}
             style={{ width: '100%', height: '100%' }}
             scrollWheelZoom={true}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={18}
+              keepBuffer={2}
+              updateWhenZooming={false}
+              updateWhenIdle={true}
             />
             
-            <ChangeMapView center={mapCenter} zoom={mapZoom} bounds={mapBounds} />
+            <ChangeMapView center={mapCenter} zoom={mapZoom} bounds={mapBounds} mobileView={mobileView} />
 
             {/* User GPS Location Marker */}
             {location && (
@@ -616,7 +630,7 @@ export default function HospitalDiscoveryPage() {
               />
             )}
 
-            {/* Hospital Markers */}
+            {/* Hospital Markers — lightweight on mobile (selective popup mounting) */}
             {filteredHospitals.map(h => {
               if (!h.location?.coordinates) return null;
               const [hLng, hLat] = h.location.coordinates;
@@ -631,30 +645,32 @@ export default function HospitalDiscoveryPage() {
                     click: () => setSelectedHospital(h),
                   }}
                 >
-                  <Popup>
-                    <div className="p-1 font-sans min-w-[190px]">
-                      <h4 className="font-bold text-xs text-slate-900 leading-snug mb-1">
-                        {h.name}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mb-2">
-                        {h.address || h.district}
-                      </p>
-                      <div className="flex items-center justify-between text-[11px] mb-2">
-                        <span className={`font-bold ${getHospitalStatus(h) === 'open' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {getHospitalStatus(h) === 'open' ? '● Open Now' : '● Closed'}
-                        </span>
-                        {h.distanceKm && (
-                          <span className="font-bold text-[#1FB29C]">{h.distanceKm} km</span>
-                        )}
+                  {isSelected && (
+                    <Popup>
+                      <div className="p-1 font-sans min-w-[190px]">
+                        <h4 className="font-bold text-xs text-slate-900 leading-snug mb-1">
+                          {h.name}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mb-2">
+                          {h.address || h.district}
+                        </p>
+                        <div className="flex items-center justify-between text-[11px] mb-2">
+                          <span className={`font-bold ${getHospitalStatus(h) === 'open' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {getHospitalStatus(h) === 'open' ? '● Open Now' : '● Closed'}
+                          </span>
+                          {h.distanceKm && (
+                            <span className="font-bold text-[#1FB29C]">{h.distanceKm} km</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => navigate(`/hospital/${h._id}`)}
+                          className="w-full py-1.5 bg-[#1FB29C] text-white text-xs font-bold rounded-lg text-center hover:bg-[#199482] transition-colors block"
+                        >
+                          View Full Details & Reviews
+                        </button>
                       </div>
-                      <button
-                        onClick={() => navigate(`/hospital/${h._id}`)}
-                        className="w-full py-1.5 bg-[#1FB29C] text-white text-xs font-bold rounded-lg text-center hover:bg-[#199482] transition-colors block"
-                      >
-                        View Full Details & Reviews
-                      </button>
-                    </div>
-                  </Popup>
+                    </Popup>
+                  )}
                 </Marker>
               );
             })}

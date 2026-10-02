@@ -36,6 +36,10 @@ function ChangeView({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
     map.setView(center, zoom);
+    const timer = setTimeout(() => {
+      map.invalidateSize({ pan: false });
+    }, 100);
+    return () => clearTimeout(timer);
   }, [center, zoom, map]);
   return null;
 }
@@ -55,6 +59,7 @@ export default function MapView({ hospitals = [], centerLat, centerLng, zoom = 1
       <MapContainer 
         center={center} 
         zoom={zoom} 
+        preferCanvas={true}
         scrollWheelZoom={false}
         style={{ height: '100%', width: '100%', zIndex: 0 }}
       >
@@ -63,6 +68,10 @@ export default function MapView({ hospitals = [], centerLat, centerLng, zoom = 1
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={18}
+          keepBuffer={2}
+          updateWhenZooming={false}
+          updateWhenIdle={true}
         />
 
         {/* User's Location Marker */}
