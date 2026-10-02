@@ -14,6 +14,8 @@ export default function HomePage() {
   const [hospitals, setHospitals] = useState([]);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
   const [error, setError] = useState(null);
+  const [autoExpanded, setAutoExpanded] = useState(false);
+  const [radiusUsedKm, setRadiusUsedKm] = useState(10);
 
   useEffect(() => {
     // If we don't have a location yet, ask for it
@@ -23,14 +25,22 @@ export default function HomePage() {
   }, [location, locationError, isLoadingLocation, fetchLocation]);
 
   useEffect(() => {
-    // When we get a location, fetch nearby hospitals
+    // When we get a location, fetch nearby hospitals with auto-expansion support
     if (location) {
       const fetchNearby = async () => {
         setLoadingHospitals(true);
         setError(null);
         try {
-          const res = await api.get(`/api/hospitals/nearby?lat=${location.lat}&lng=${location.lng}&radius=15000`);
-          setHospitals(res.data);
+          const res = await api.get(`/api/hospitals/nearby?lat=${location.lat}&lng=${location.lng}&radius=10000&extended=true`);
+          const list = Array.isArray(res.data) ? res.data : (res.data.hospitals || []);
+          setHospitals(list);
+          if (res.data?.autoExpanded || res.headers['x-auto-expanded'] === 'true') {
+            setAutoExpanded(true);
+            setRadiusUsedKm(res.data?.radiusUsedKm || 50);
+          } else {
+            setAutoExpanded(false);
+            setRadiusUsedKm(10);
+          }
         } catch (err) {
           console.error(err);
           setError('Failed to fetch nearby hospitals. Please try again.');
@@ -117,6 +127,16 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Auto-expansion Fallback Notice */}
+        {autoExpanded && !loadingHospitals && (
+          <div className="mb-5 flex items-center gap-3 bg-amber-50 border border-amber-200/90 p-4 rounded-2xl text-amber-900 text-xs sm:text-sm shadow-sm">
+            <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
+            <div className="leading-snug">
+              <strong className="font-bold">Extended Area Search:</strong> No pediatric hospitals found within 10 km of your location. We <strong>automatically expanded the search to {radiusUsedKm} km</strong> to locate the nearest emergency facilities.
+            </div>
+          </div>
+        )}
+
         {/* Grid */}
         {!loadingHospitals && !error && hospitals.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
@@ -133,7 +153,7 @@ export default function HomePage() {
                <MapPin size={28} className="text-mid" />
              </div>
              <p className="text-[15px] font-semibold text-mid mb-1">No hospitals found</p>
-             <p className="text-[13px]">We couldn't find any paediatric hospitals inside a 15km radius of your location.</p>
+             <p className="text-[13px]">We couldn't find any paediatric hospitals inside a 50km radius of your location.</p>
           </div>
         )}
       </div>

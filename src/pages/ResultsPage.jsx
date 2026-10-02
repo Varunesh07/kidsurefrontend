@@ -15,6 +15,8 @@ export default function ResultsPage() {
   const [matchedSpecialisations, setMatchedSpecialisations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [autoExpanded, setAutoExpanded] = useState(false);
+  const [radiusUsedKm, setRadiusUsedKm] = useState(10);
 
   const ids = searchParams.get('ids');
   const aiText = searchParams.get('aiText');
@@ -55,8 +57,10 @@ export default function ResultsPage() {
           });
         }
         
-        setHospitals(res.data.hospitals);
-        setMatchedSpecialisations(res.data.matchedSpecialisations);
+        setHospitals(res.data.hospitals || []);
+        setMatchedSpecialisations(res.data.matchedSpecialisations || []);
+        setAutoExpanded(res.data.autoExpanded || false);
+        setRadiusUsedKm(res.data.radiusUsedKm || 10);
       } catch (err) {
         console.error(err);
         setError(err.response?.data?.message || 'Failed to match hospitals.');
@@ -100,6 +104,15 @@ export default function ResultsPage() {
 
         {!loading && !error && hospitals.length > 0 && (
           <>
+            {autoExpanded && (
+              <div className="mb-5 flex items-center gap-3 bg-amber-50 border border-amber-200/90 p-4 rounded-2xl text-amber-900 text-xs sm:text-sm shadow-sm">
+                <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
+                <div className="leading-snug">
+                  <strong className="font-bold">Extended Proximity Search:</strong> No specialized pediatric facilities were found within 10 km. We <strong>automatically expanded your search to {radiusUsedKm} km</strong> to locate the nearest emergency and specialized departments.
+                </div>
+              </div>
+            )}
+
             <div className="mb-5 bg-gradient-to-r from-[#EAF7F4] to-white border border-teal/20 rounded-[14px] p-4 flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-teal text-white flex items-center justify-center flex-shrink-0 mt-0.5">
                 <Sparkles size={16} />
