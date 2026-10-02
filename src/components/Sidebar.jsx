@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Stethoscope, MapPin, Search, Activity, Bookmark, ShieldAlert, LogOut, Compass } from 'lucide-react';
+import { Stethoscope, MapPin, Search, Activity, Bookmark, ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar() {
@@ -14,7 +14,6 @@ export default function Sidebar() {
     { id: '/search', label: 'Search', Icon: Search },
     { id: '/symptoms', label: 'Symptoms', Icon: Activity },
     { id: '/saved', label: 'Saved', Icon: Bookmark },
-    { id: '/spatial-lab', label: 'Spatial Lab (v2)', Icon: Compass },
   ];
 
   if (user?.role === 'superadmin' || user?.role === 'hospital_admin') {

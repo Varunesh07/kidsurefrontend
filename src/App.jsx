@@ -9,7 +9,6 @@ import ResultsPage from './pages/ResultsPage';
 import HospitalDetail from './pages/HospitalDetail';
 import SavedPage from './pages/SavedPage';
 import AdminPage from './pages/AdminPage';
-import SpatialLabPage from './pages/SpatialLabPage';
 import Sidebar from './components/Sidebar';
 import MobileTopBar from './components/MobileTopBar';
 import BottomNav from './components/BottomNav';
@@ -96,7 +95,6 @@ export default function App() {
             <Route path="/symptoms/results" element={<PrivateRoute><ResultsPage /></PrivateRoute>} />
             <Route path="/hospital/:id" element={<PrivateRoute><HospitalDetail /></PrivateRoute>} />
             <Route path="/saved" element={<PrivateRoute><SavedPage /></PrivateRoute>} />
-            <Route path="/spatial-lab" element={<PrivateRoute><SpatialLabPage /></PrivateRoute>} />
             
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           </Routes>
