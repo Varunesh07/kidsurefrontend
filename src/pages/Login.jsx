@@ -68,7 +68,7 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await api.post('/api/auth/login', loginData)
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('token', res.data.accessToken || res.data.token)
       navigateToDestination()
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please try again.')
@@ -89,7 +89,7 @@ export default function Login() {
         password: signupData.password,
         role: signupData.role,
       })
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('token', res.data.accessToken || res.data.token)
       navigateToDestination()
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.')
@@ -103,7 +103,7 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await api.post('/api/auth/google', { access_token: tokenResponse.access_token })
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('token', res.data.accessToken || res.data.token)
       navigateToDestination()
     } catch (err) {
       setError(err.response?.data?.message || 'Google sign-in failed. Please try again.')
