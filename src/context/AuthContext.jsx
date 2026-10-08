@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 
 const AuthContext = createContext();
@@ -9,23 +9,30 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMe = async () => {
+  const fetchMe = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const res = await api.get('/api/auth/me');
-        setUser(res.data);
-      }
+      const res = await api.get('/api/auth/me');
+      setUser(res.data);
     } catch (err) {
       console.error('Auth verification failed', err);
+      if (err.response?.status === 401 || err.code === 'ERR_NETWORK') {
+        localStorage.removeItem('token');
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMe();
-  }, []);
+  }, [fetchMe]);
 
   const login = (userData, token) => {
     localStorage.setItem('token', token);

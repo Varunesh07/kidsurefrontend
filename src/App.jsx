@@ -54,8 +54,13 @@ const PrivateRoute = ({ children }) => {
     }
   }, [token, user, loading, fetchMe]);
 
-  if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (loading || (token && !user)) return <div className="min-h-screen flex items-center justify-center text-teal font-semibold">Loading KidSure...</div>;
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-teal font-semibold">Loading KidSure...</div>;
+  }
+
+  if (!token || !user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
   
   return <AppShell>{children}</AppShell>;
 };
@@ -65,7 +70,7 @@ const AdminRoute = ({ children }) => {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-mid">Loading...</div>;
   
   const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token || !user) return <Navigate to="/login" replace />;
   
   if (user && user.role !== 'superadmin' && user.role !== 'hospital_admin') {
     return <Navigate to="/home" replace />;
