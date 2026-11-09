@@ -20,13 +20,14 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../api/axios';
 import { useLocationInfo } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
 import { getHospitalStatus } from '../utils/getStatus';
+import { calculateDistance } from '../utils/distance';
 
 // Leaflet marker assets
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -229,16 +230,16 @@ export default function HospitalDiscoveryPage() {
       const [lng, lat] = h.location.coordinates;
       setMapBounds(null);
       setMapCenter([lat, lng]);
-      setMapZoom(16);
+      setMapZoom(15);
     }
     if (shouldSwitchToMap) {
       setMobileView('map');
     }
   };
 
-  // Filter hospitals locally by search input and category
+  // Filter and sort hospitals locally by search input, category, and selected hospital proximity
   const filteredHospitals = useMemo(() => {
-    return hospitals.filter(h => {
+    let list = hospitals.filter(h => {
       const matchesSearch = !searchQuery || 
         h.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (h.address && h.address.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -249,7 +250,31 @@ export default function HospitalDiscoveryPage() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [hospitals, searchQuery, activeCategory]);
+
+    // When a hospital is selected in district mode, compute relative distance from it and sort nearest first
+    if (discoveryMode === 'district' && selectedHospital?.location?.coordinates) {
+      const [selLng, selLat] = selectedHospital.location.coordinates;
+      list = list.map(h => {
+        if (!h.location?.coordinates) return { ...h, relativeDistKm: null };
+        const [hLng, hLat] = h.location.coordinates;
+        const dist = calculateDistance(selLat, selLng, hLat, hLng);
+        return {
+          ...h,
+          relativeDistKm: dist != null ? parseFloat(dist.toFixed(1)) : null
+        };
+      });
+
+      list.sort((a, b) => {
+        if (a._id === selectedHospital._id) return -1;
+        if (b._id === selectedHospital._id) return 1;
+        if (a.relativeDistKm == null) return 1;
+        if (b.relativeDistKm == null) return -1;
+        return a.relativeDistKm - b.relativeDistKm;
+      });
+    }
+
+    return list;
+  }, [hospitals, searchQuery, activeCategory, selectedHospital, discoveryMode]);
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] min-h-screen">
@@ -432,14 +457,48 @@ export default function HospitalDiscoveryPage() {
             </div>
           )}
 
+          {/* Active Selected Hospital Proximity Banner */}
+          {discoveryMode === 'district' && selectedHospital && (
+            <div className="flex items-center justify-between bg-teal-50 border border-[#1FB29C]/30 px-3.5 py-2.5 rounded-xl text-xs text-slate-800 shadow-sm">
+              <div className="flex items-center gap-2 truncate mr-2">
+                <span className="w-2 h-2 rounded-full bg-[#1FB29C] animate-pulse flex-shrink-0" />
+                <span className="truncate">
+                  Showing hospitals near <strong className="text-slate-900 font-semibold">{selectedHospital.name}</strong>
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedHospital(null);
+                }}
+                className="flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 shadow-xs flex-shrink-0 transition-colors"
+                title="Show all district hospitals"
+              >
+                <X size={12} /> Show All
+              </button>
+            </div>
+          )}
+
           {!loading && filteredHospitals.map((hospital, idx) => {
             const isSelected = selectedHospital?._id === hospital._id;
             const isOpen = getHospitalStatus(hospital) === 'open';
-            const distDisplay = hospital.distanceKm 
-              ? `${hospital.distanceKm} km` 
-              : hospital.dist 
-              ? `${hospital.dist.toFixed(1)} km` 
-              : null;
+            
+            let distDisplay = null;
+            if (discoveryMode === 'district' && selectedHospital) {
+              if (isSelected) {
+                distDisplay = 'Selected';
+              } else if (hospital.relativeDistKm != null) {
+                distDisplay = `${hospital.relativeDistKm} km away`;
+              }
+            } else if (hospital.distanceKm) {
+              distDisplay = `${hospital.distanceKm} km`;
+            } else if (hospital.dist) {
+              distDisplay = `${hospital.dist.toFixed(1)} km`;
+            } else if (location && hospital.location?.coordinates) {
+              const [hLng, hLat] = hospital.location.coordinates;
+              const d = calculateDistance(userLat, userLng, hLat, hLng);
+              distDisplay = d != null ? `${d.toFixed(1)} km` : null;
+            }
 
             return (
               <div
@@ -617,19 +676,6 @@ export default function HospitalDiscoveryPage() {
               />
             )}
 
-            {/* District Mode: District Boundary Polygon */}
-            {discoveryMode === 'district' && districtBoundary?.coordinates?.[0] && (
-              <Polygon
-                positions={districtBoundary.coordinates[0].map(([lng, lat]) => [lat, lng])}
-                pathOptions={{
-                  color: '#0d9488',
-                  fillColor: '#14b8a6',
-                  fillOpacity: 0.12,
-                  weight: 2,
-                }}
-              />
-            )}
-
             {/* Hospital Markers — lightweight on mobile (selective popup mounting) */}
             {filteredHospitals.map(h => {
               if (!h.location?.coordinates) return null;
@@ -642,7 +688,7 @@ export default function HospitalDiscoveryPage() {
                   position={[hLat, hLng]}
                   icon={isSelected ? selectedIcon : DefaultIcon}
                   eventHandlers={{
-                    click: () => setSelectedHospital(h),
+                    click: () => handleSelectHospital(h, false),
                   }}
                 >
                   {isSelected && (
